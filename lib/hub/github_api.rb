@@ -110,6 +110,40 @@ module Hub
       res.data
     end
 
+	def close_pullrequest project, pull_id, comment
+		info = self.pullrequest_info(project, pull_id)
+		if info["state"] == "closed"			
+			result = {
+				"html_url" => "https://%s/repos/%s/%s/pulls/%d" %
+					[api_host(project.host), project.owner, project.name, pull_id],
+				"state" => "closed"
+			}
+		else
+			params = {
+				:state => "closed"
+			}
+			res = post "https://%s/repos/%s/%s/pulls/%d" %
+				[api_host(project.host), project.owner, project.name, pull_id], params
+
+			res.error! unless res.success?
+
+			result = res.data
+		end
+		
+		params = {
+			:body => comment
+		}
+
+		if comment != nil
+			post "https://%s/repos/%s/%s/issues/%d/comments" %
+				[api_host(project.host), project.owner, project.name, pull_id], params
+		end
+		
+		#return the pull request state change result, ignore the result of the
+		#comment
+		result
+	end
+	
     # Methods for performing HTTP requests
     #
     # Requires access to a `config` object that implements:

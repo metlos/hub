@@ -74,6 +74,7 @@ module Hub
     # $ hub pull-request "My humble contribution"
     # $ hub pull-request -i 92
     # $ hub pull-request https://github.com/rtomayko/tilt/issues/92
+	# $ hub pull-request -c 92 "Closing this PR because it has been obsoleted"
     def pull_request(args)
       args.shift
       options = { }
@@ -95,6 +96,9 @@ module Hub
 
       while arg = args.shift
         case arg
+		when '-c'
+			close = true
+			pull_id = args.shift
         when '-f'
           force = true
         when '-b'
@@ -116,6 +120,13 @@ module Hub
         end
       end
 
+	  if close
+	    pull = api_client.close_pullrequest(head_project, pull_id, options[:title])
+		args.executable = 'echo'
+		args.replace [pull['html_url'], pull["state"]]
+		return args
+	  end
+	  
       options[:project] = base_project
       options[:base] ||= master_branch.short_name
 
@@ -186,7 +197,7 @@ module Hub
       args.replace [pull['html_url']]
     rescue GitHubAPI::Exceptions
       response = $!.response
-      display_api_exception("creating pull request", response)
+      display_api_exception("pull request", response)
       if 404 == response.status
         base_url = base_project.web_url.split('://', 2).last
         warn "Are you sure that #{base_url} exists?"
